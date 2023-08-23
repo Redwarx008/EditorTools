@@ -3,10 +3,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image_write.h>
 
 #include "Utility.h"
 using std::string;
@@ -27,26 +23,45 @@ int main(int argc, char* argv[])
         return 2;
     }
 
-    int width, height, nChannel;
-    int ok = stbi_info(fileName.c_str(), &width, &height, &nChannel);
-    if (ok == 0)
+    spng_ctx* ctx = spng_ctx_new(0);
+
+    FILE* f = OpenFile(fileName, "rb+");
+    if (f == nullptr)
     {
-        std::cout << stbi_failure_reason() << std::endl;
-        return 3;
+        std::cout << "can't open " + fileName << std::endl;
+        return 2;
+    }
+    spng_set_png_file(ctx, f);
+
+    int width, height, nChannel, bitDepth;
+    int ret = GetImageInfo(ctx, &width, &height, &nChannel, &bitDepth);
+    if (ret != 0)
+    {
+        std::cout << std::string("GetImageInfo error: ") + spng_strerror(ret) << std::endl;
+        return 22;
     }
 
-    bool is16Bit = stbi_is_16_bit(fileName.c_str()) == 1 ? true : false;
-    int bitDepth = is16Bit ? 16 : 8;
+    bool is16Bit = bitDepth == 16 ? true : false;
 
-    void* inBuffer;
-    if (is16Bit)
+    spng_format fmt = SPNG_FMT_PNG;
+
+    size_t inSize;
+    ret = spng_decoded_image_size(ctx, fmt, &inSize);
+    if (ret != 0)
     {
-        inBuffer = stbi_load_16(fileName.c_str(), &width, &height, &nChannel, 0);
+        std::cout << std::string("spng_decoded_image_size error: ") + spng_strerror(ret) << std::endl;
+        return 22;
     }
-    else
+
+    uint8_t* inData = new uint8_t[inSize];
+    if (inData == nullptr)
     {
-        inBuffer = stbi_load(fileName.c_str(), &width, &height, &nChannel, 0);
+        std::cout << "Cannot allocate enough memory.\n";
+        return 12;
     }
+
+    ret = spng_decode_image(ctx, inData, inSize, fmt, 0);
+    spng_ctx_free(ctx);
 
     // convert to float
     float* heights = new float[width * height];
