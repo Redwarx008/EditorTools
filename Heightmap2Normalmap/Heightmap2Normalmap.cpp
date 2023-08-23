@@ -3,6 +3,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 #include "Utility.h"
 using std::string;
@@ -23,45 +25,19 @@ int main(int argc, char* argv[])
         return 2;
     }
 
-    spng_ctx* ctx = spng_ctx_new(0);
-
-    FILE* f = OpenFile(fileName, "rb+");
-    if (f == nullptr)
-    {
-        std::cout << "can't open " + fileName << std::endl;
-        return 2;
-    }
-    spng_set_png_file(ctx, f);
 
     int width, height, nChannel, bitDepth;
-    int ret = GetImageInfo(ctx, &width, &height, &nChannel, &bitDepth);
-    if (ret != 0)
+
+    void* heightmapData;
+    spng_ctx* decodeCtx = spng_ctx_new(0);
+    int ret = DecodeImage(decodeCtx, fileName.c_str(), &heightmapData, &width, &height, &nChannel, &bitDepth);
+    if (!ret)
     {
-        std::cout << std::string("GetImageInfo error: ") + spng_strerror(ret) << std::endl;
-        return 22;
+        return 1;
     }
 
     bool is16Bit = bitDepth == 16 ? true : false;
 
-    spng_format fmt = SPNG_FMT_PNG;
-
-    size_t inSize;
-    ret = spng_decoded_image_size(ctx, fmt, &inSize);
-    if (ret != 0)
-    {
-        std::cout << std::string("spng_decoded_image_size error: ") + spng_strerror(ret) << std::endl;
-        return 22;
-    }
-
-    uint8_t* inData = new uint8_t[inSize];
-    if (inData == nullptr)
-    {
-        std::cout << "Cannot allocate enough memory.\n";
-        return 12;
-    }
-
-    ret = spng_decode_image(ctx, inData, inSize, fmt, 0);
-    spng_ctx_free(ctx);
 
     // convert to float
     float* heights = new float[width * height];
@@ -75,16 +51,18 @@ int main(int argc, char* argv[])
     {
         for (int i = 0; i < size; ++i)
         {
-            heights[i] = static_cast<uint16_t*>(inBuffer)[i] / 65535.0 * heightMultiplier;
+            heights[i] = static_cast<uint16_t*>(heightmapData)[i] / 65535.0 * heightMultiplier;
         }
     }
     else
     {
         for (int i = 0; i < size; ++i)
         {
-            heights[i] = static_cast<uint8_t*>(inBuffer)[i] / 255.0 * heightMultiplier;
+            heights[i] = static_cast<uint8_t*>(heightmapData)[i] / 255.0 * heightMultiplier;
         }
     }
+    spng_ctx_free(decodeCtx);
+
 
     uint8_t* normalmap = new uint8_t[size * 2]; //r8g8 texture
     if (normalmap == nullptr)
@@ -113,8 +91,16 @@ int main(int argc, char* argv[])
         normalmap[index * 2 + 1] = y;
     }
     delete[] heights;
-    stbi_write_png((GetFileNameWithoutSuffix(fileName) + "_normal.png").c_str(), width, height, 2, normalmap, 2 * width);
+
+    void* outBuffer;
+    size_t outSize = EncodeImage(normalmap, width, height, 2, 8, &outBuffer);
     delete[] normalmap;
+
+    FILE* f = OpenFile(GetFileNameWithoutSuffix(fileName) + "_normal.png", "wb");
+    fwrite(outBuffer, 1, outSize, f);
+    fclose(f);
+
+    //stbi_write_png("sts.png", width, height, nChannel, heightmapData, width * nChannel);
     return 0;
 }
 

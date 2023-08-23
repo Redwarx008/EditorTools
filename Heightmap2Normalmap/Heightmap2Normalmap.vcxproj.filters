@@ -18,6 +18,9 @@
     <ClCompile Include="Heightmap2Normalmap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="spng.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utility.h">
