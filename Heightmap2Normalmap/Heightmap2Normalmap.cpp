@@ -2,11 +2,9 @@
 //
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
+#include <spng/spng.h>
+#include <Utility.h>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image_write.h>
-
-#include "Utility.h"
 using std::string;
 
 int main(int argc, char* argv[])
@@ -29,9 +27,9 @@ int main(int argc, char* argv[])
     int width, height, nChannel, bitDepth;
 
     void* heightmapData;
-    spng_ctx* decodeCtx = spng_ctx_new(0);
-    int ret = DecodeImage(decodeCtx, fileName.c_str(), &heightmapData, &width, &height, &nChannel, &bitDepth);
-    if (!ret)
+
+    size_t pixelsSize = DecodeImage(fileName.c_str(), &heightmapData, &width, &height, &nChannel, &bitDepth);
+    if (pixelsSize == -1)
     {
         return 1;
     }
@@ -61,8 +59,8 @@ int main(int argc, char* argv[])
             heights[i] = static_cast<uint8_t*>(heightmapData)[i] / 255.0 * heightMultiplier;
         }
     }
-    spng_ctx_free(decodeCtx);
-
+    
+    free(heightmapData);
 
     uint8_t* normalmap = new uint8_t[size * 2]; //r8g8 texture
     if (normalmap == nullptr)
@@ -99,7 +97,7 @@ int main(int argc, char* argv[])
     FILE* f = OpenFile(GetFileNameWithoutSuffix(fileName) + "_normal.png", "wb");
     fwrite(outBuffer, 1, outSize, f);
     fclose(f);
-
+    free(outBuffer);
     //stbi_write_png("sts.png", width, height, nChannel, heightmapData, width * nChannel);
     return 0;
 }

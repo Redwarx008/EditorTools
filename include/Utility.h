@@ -1,7 +1,7 @@
 #pragma once
 #include <math.h>
 #include <string>
-#include <spng.h>
+#include "spng/spng.h"
 
 struct Vector3
 {
@@ -99,7 +99,7 @@ FILE* OpenFile(const std::string& fileName, const char* mode)
     return f;
 }
 
-size_t DecodeImage(spng_ctx* ctx, const char* fileName, void** out, int* width, int* height, int* nChannel, int* bitDepth)
+size_t DecodeImage(const char* fileName, void** out, int* width, int* height, int* nChannel, int* bitDepth)
 {
     
     FILE* f = OpenFile(fileName, "rb+");
@@ -108,12 +108,15 @@ size_t DecodeImage(spng_ctx* ctx, const char* fileName, void** out, int* width, 
         std::cout << "can't open " + std::string(fileName) << std::endl;
         return -1;
     }
+    spng_ctx* ctx = spng_ctx_new(0);
+
     spng_set_png_file(ctx, f);
 
     int ret = GetImageInfo(ctx, width, height, nChannel, bitDepth);
     if (ret != 0)
     {
         std::cout << std::string("GetImageInfo error: ") + spng_strerror(ret) << std::endl;
+        fclose(f);
         return -1;
     }
 
@@ -125,10 +128,11 @@ size_t DecodeImage(spng_ctx* ctx, const char* fileName, void** out, int* width, 
     if (ret != 0)
     {
         std::cout << std::string("spng_decoded_image_size error: ") + spng_strerror(ret) << std::endl;
+        fclose(f);
         return -1;
     }
 
-    *out = new uint8_t[inSize];
+    *out = malloc(inSize);
     if (*out == nullptr)
     {
         std::cout << "Cannot allocate enough memory.\n";
@@ -137,6 +141,7 @@ size_t DecodeImage(spng_ctx* ctx, const char* fileName, void** out, int* width, 
     }
 
     ret = spng_decode_image(ctx, *out, inSize, fmt, 0);
+    spng_ctx_free(ctx);
     fclose(f);
     return inSize;
 }
