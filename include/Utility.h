@@ -31,7 +31,7 @@ struct Vector3
     }
 };
 
-int GetChannelCount(spng_color_type color_type)
+inline int GetChannelCount(spng_color_type color_type)
 {
     switch (color_type)
     {
@@ -48,7 +48,7 @@ int GetChannelCount(spng_color_type color_type)
     }
 }
 
-spng_color_type GetColorType(int nChannel)
+inline spng_color_type GetColorType(int nChannel)
 {
     switch (nChannel)
     {
@@ -70,7 +70,7 @@ __forceinline std::string GetFileNameWithoutSuffix(const std::string& fileName)
     return fileName.substr(0, fileName.find_last_of('.'));
 }
 
-int GetImageInfo(spng_ctx* ctx, int* width, int* height, int* nChannel, int* bitDepth)
+inline int GetImageInfo(spng_ctx* ctx, int* width, int* height, int* nChannel, int* bitDepth)
 {
     spng_ihdr ihdr;
     int ret = spng_get_ihdr(ctx, &ihdr);
@@ -81,7 +81,7 @@ int GetImageInfo(spng_ctx* ctx, int* width, int* height, int* nChannel, int* bit
     return ret;
 }
 
-FILE* OpenFile(const std::string& fileName, const char* mode)
+inline FILE* OpenFile(const std::string& fileName, const char* mode)
 {
     FILE* f;
 #if defined(_MSC_VER) && _MSC_VER >= 1400
@@ -99,7 +99,7 @@ FILE* OpenFile(const std::string& fileName, const char* mode)
     return f;
 }
 
-size_t DecodeImage(const char* fileName, void** out, int* width, int* height, int* nChannel, int* bitDepth)
+inline size_t DecodeImage(const char* fileName, void** out, int* width, int* height, int* nChannel, int* bitDepth)
 {
     
     FILE* f = OpenFile(fileName, "rb+");
@@ -146,7 +146,7 @@ size_t DecodeImage(const char* fileName, void** out, int* width, int* height, in
     return inSize;
 }
 
-size_t EncodeImage(void* in, int width, int height, int nChannel, int bitDepth, void** outBuffer)
+inline size_t EncodeImage(void* in, int width, int height, int nChannel, int bitDepth, void** outBuffer)
 {
     spng_ctx* ctx = spng_ctx_new(SPNG_CTX_ENCODER);
 

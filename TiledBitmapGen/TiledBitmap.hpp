@@ -4,6 +4,45 @@
 
 namespace TiledBitmapGen
 {
+	enum TiledBitmapFormat : uint8_t
+	{
+		R8UInt,
+		RG8UInt,
+		RGBA8UInt,
+		R16UInt,
+		R32SFloat,
+		Unkown
+	};
+
+	inline void GetPixelInfo(TiledBitmapFormat format, int* nchannel, int* depth)
+	{
+		switch (format)
+		{
+		case R8UInt:
+			*nchannel = 1;
+			*depth = 1;
+			break;
+		case RG8UInt:
+			*nchannel = 2;
+			*depth = 1;
+			break;
+		case RGBA8UInt:
+			*nchannel = 4;
+			*depth = 1;
+			break;
+		case R16UInt:
+			*nchannel = 1;
+			*depth = 2;
+			break;
+		case R32SFloat:
+			*nchannel = 1;
+			*depth = 4;
+			break;
+		default:
+			break;
+		}
+	}
+
 	struct Color
 	{
 		float r;
@@ -11,31 +50,23 @@ namespace TiledBitmapGen
 		float b;
 		float a;
 	};
-	enum TiledBitmapFormat
-	{
-		RG8UInt,
-		RGBA8UInt,
-		R16UInt,
-		R32SFloat
-	};
+
 	class TiledBitmap
 	{
 	public:
-		static TiledBitmap* Create(void* pixels, TiledBitmapFormat format, int width, int height, int tileSize);
+		static TiledBitmap* Create(float* data, TiledBitmapFormat format, int width, int height, int tileSize);
 		void SetPixel(int x, int y, Color color);
-		void Save(FILE* f);
+		void SaveData(FILE* f);
 
 		struct Tile
 		{
-			Tile(uint8_t* data)
+			Tile(std::vector<uint8_t> data)
+				:data(data)
 			{
-				this->data = data;
+				
 			}
-			~Tile()
-			{
-				delete[] data;
-			}
-			uint8_t* data;
+
+			std::vector<uint8_t> data;
 		};
 	private:
 		TiledBitmap(TiledBitmapFormat format, int width, int height, int tileSize, std::vector<Tile>&& tiles);

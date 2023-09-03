@@ -3,31 +3,6 @@
 
 namespace TiledBitmapGen
 {
-	void GetPixelInfo(TiledBitmapFormat format, int* nchannel, int* depth)
-	{
-		switch (format)
-		{
-		case RG8UInt:
-			*nchannel = 2;
-			*depth = 1;
-			break;
-		case RGBA8UInt:
-			*nchannel = 4;
-			*depth = 1;
-			break;
-		case R16UInt:
-			*nchannel = 1;
-			*depth = 2;
-			break;
-		case R32SFloat:
-			*nchannel = 1;
-			*depth = 4;
-			break;
-		default:
-			break;
-		}
-	}
-
 
 	TiledBitmap::TiledBitmap(TiledBitmapFormat format, int width, int height, int tileSize, std::vector<Tile>&& tiles)
 		:_tiles(std::move(tiles))
@@ -38,13 +13,13 @@ namespace TiledBitmapGen
 		_tileSize = tileSize;
 	}
 
-	TiledBitmap* TiledBitmap::Create(void* pixels, TiledBitmapFormat format, int width, int height, int tileSize)
+	TiledBitmap* TiledBitmap::Create(float* data, TiledBitmapFormat format, int width, int height, int tileSize)
 	{
 		TiledBitmap* texture = nullptr;
 
 		int nTileX = (width - 1) / tileSize + 1;
 		int nTileY = (height - 1) / tileSize + 1;
-		std::vector<Tile> tiles(nTileX * nTileY);
+		std::vector<Tile> tiles;
 
 		int nChannel;
 		int depth;
@@ -58,24 +33,32 @@ namespace TiledBitmapGen
 				int tileWidth = std::min(tileSize, width - x);
 				int tileHeight = std::min(tileSize, height - y);
 
-				uint8_t* tileData = new uint8_t[tileWidth * tileHeight * pixelSize];
-				if (tileData == nullptr)
-				{
-					std::cout << "There is not enough available memory.\n";
-					return texture;
-				}
+
+				std::vector<uint8_t> tileData;
+				tileData.resize(tileWidth * tileHeight * pixelSize);
 
 				for (int dstY = 0; dstY < tileHeight; ++dstY)
 				{
 					for (int dstX = 0; dstX < tileWidth; ++dstX)
 					{
 						int srcX = x + dstX;
-						int srcY = y + dstY;
-						const uint8_t* src = &static_cast<uint8_t*>(pixels)[(srcX + srcY * width) * pixelSize];
-						uint8_t* dst = &tileData[(dstX + dstY * tileWidth) * pixelSize];
-						for (int i = 0; i < pixelSize; ++i)
+						int srcY = y + dstY;	
+
+						for (int c = 0; c < nChannel; ++c)
 						{
-							dst[i] = src[i];
+							float value = data[(srcX + srcY * width) * nChannel + c];
+							if (depth == 8)
+							{
+								((uint8_t*)&tileData[0])[(dstX + dstY * tileWidth) * nChannel + c] = (uint8_t)value;
+							}
+							else if (depth == 16)
+							{
+								((uint16_t*)&tileData[0])[(dstX + dstY * tileWidth) * nChannel + c] = (uint16_t)value;
+							}
+							else
+							{
+								((float *)&tileData[0])[(dstX + dstY * tileWidth) * nChannel + c] = value;
+							}
 						}
 					}
 				}
@@ -87,8 +70,19 @@ namespace TiledBitmapGen
 		return texture;
 	}
 
-	void TiledBitmap::Save(FILE* f)
+	void TiledBitmap::SaveData(FILE* f)
 	{
+		if (!f)
+		{
+			return;
+		}
 
+		int nChannel, bitDepth;
+		GetPixelInfo(_format, &nChannel, &bitDepth);
+
+		for (int i = 0; i < _tiles.size(); ++i)
+		{
+			fwrite(&_tiles[i].data[0], 1, _tiles[i].data.size(), f);
+		}
 	}
 }

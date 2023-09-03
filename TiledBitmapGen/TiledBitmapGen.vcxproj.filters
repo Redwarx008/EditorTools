@@ -5,5 +5,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TiledBitmap.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="spng.c" />
   </ItemGroup>
 </Project>
