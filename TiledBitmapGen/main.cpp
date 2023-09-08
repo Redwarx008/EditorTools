@@ -11,7 +11,8 @@ using std::string;
 using TiledBitmapGen::TiledBitmapFormat;
 using TiledBitmapGen::TiledBitmap;
 
-const static int TILE_SIZE = 256;
+static int TILE_SIZE = 256;
+
 
 inline float get_channel_value(const float* data, int x, int y, int width, int height, int nChannel, int channel)
 {
@@ -67,26 +68,14 @@ TiledBitmapFormat GetTiledBitmapFormat(int bitDepth, int nChannel)
 
 int main(int argc, char* argv[])
 {
-    if (argc < 3 || argc > 4)
+    if (argc < 4 || argc > 5)
     {
-        cout << "usage: [filename] [miplevel] Option:[format]\n";
+        cout << "usage: [filename] [miplevel] [tileWidth] Option:[format]\n";
     }
 
     string fileName = argv[1];
     int mipLevel = atoi(argv[2]);
-    int outBitDepth;
-    if (strcmp(argv[3], "UInt8") == 0)
-    {
-        outBitDepth = 8;
-    }
-    else if (strcmp(argv[3], "UInt16") == 0)
-    {
-        outBitDepth = 16;
-    }
-    else
-    {
-        outBitDepth = 32; // float
-    }
+    TILE_SIZE = atoi(argv[3]);
 
     int width, height, nChannel, bitDepth;
 
@@ -95,6 +84,20 @@ int main(int argc, char* argv[])
     if (pixelsSize == -1)
     {
         return 1;
+    }
+
+    int outBitDepth = bitDepth;
+    if (strcmp(argv[3], "UInt8") == 0)
+    {
+        outBitDepth = 8;
+    }
+    else if (strcmp(argv[3], "UInt16") == 0)
+    {
+        outBitDepth = 16;
+    }
+    else if (strcmp(argv[3], "Float") == 0)
+    {
+        outBitDepth = 32; // float
     }
 
     // convert to float
@@ -200,7 +203,6 @@ int main(int argc, char* argv[])
                 }
             }
         }
-
         TiledBitmap* outTiledBitmap = TiledBitmap::Create(outData, GetTiledBitmapFormat(outBitDepth, nChannel), w, h, TILE_SIZE);
         outTiledBitmap->SaveData(f);
 

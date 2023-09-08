@@ -62,7 +62,7 @@ namespace TiledBitmapGen
 						}
 					}
 				}
-				tiles.push_back(Tile(tileData));
+				tiles.push_back(Tile{ tileData });
 			}
 		}
 
@@ -76,9 +76,6 @@ namespace TiledBitmapGen
 		{
 			return;
 		}
-
-		int nChannel, bitDepth;
-		GetPixelInfo(_format, &nChannel, &bitDepth);
 
 		for (int i = 0; i < _tiles.size(); ++i)
 		{

@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Heightmap2Normalmap", "Heig
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TiledBitmapGen", "TiledBitmapGen\TiledBitmapGen.vcxproj", "{DD7D1F13-BEED-4FCA-BB52-0F5164C4FE63}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MinMaxMapsGen", "MinMaxMapsGen\MinMaxMapsGen.vcxproj", "{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{DD7D1F13-BEED-4FCA-BB52-0F5164C4FE63}.Release|x64.Build.0 = Release|x64
 		{DD7D1F13-BEED-4FCA-BB52-0F5164C4FE63}.Release|x86.ActiveCfg = Release|Win32
 		{DD7D1F13-BEED-4FCA-BB52-0F5164C4FE63}.Release|x86.Build.0 = Release|Win32
+		{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}.Debug|x64.ActiveCfg = Debug|x64
+		{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}.Debug|x64.Build.0 = Debug|x64
+		{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}.Debug|x86.ActiveCfg = Debug|Win32
+		{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}.Debug|x86.Build.0 = Debug|Win32
+		{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}.Release|x64.ActiveCfg = Release|x64
+		{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}.Release|x64.Build.0 = Release|x64
+		{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}.Release|x86.ActiveCfg = Release|Win32
+		{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
