@@ -87,15 +87,15 @@ int main(int argc, char* argv[])
     }
 
     int outBitDepth = bitDepth;
-    if (strcmp(argv[3], "UInt8") == 0)
+    if (strcmp(argv[4], "UInt8") == 0)
     {
         outBitDepth = 8;
     }
-    else if (strcmp(argv[3], "UInt16") == 0)
+    else if (strcmp(argv[4], "UInt16") == 0)
     {
         outBitDepth = 16;
     }
-    else if (strcmp(argv[3], "Float") == 0)
+    else if (strcmp(argv[4], "Float") == 0)
     {
         outBitDepth = 32; // float
     }
@@ -141,7 +141,7 @@ int main(int argc, char* argv[])
     string outFileName = GetFileNameWithoutSuffix(fileName) + ".tbmp";
 
     FILE* f = OpenFile(outFileName, "wb");
-    WriteHeader(f, width, height, TILE_SIZE, bitDepth, nChannel, mipLevel);
+    WriteHeader(f, width, height, TILE_SIZE, outBitDepth, nChannel, mipLevel);
 
     float* inData = formattedData;
     for (int mip = 1; mip <= mipLevel; ++mip)

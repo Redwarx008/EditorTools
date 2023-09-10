@@ -60,6 +60,11 @@ namespace TiledBitmapGen
 
 		struct Tile
 		{
+			Tile(std::vector<uint8_t>&& data)
+				:data(std::move(data))
+			{
+
+			}
 			std::vector<uint8_t> data;
 		};
 	private:
@@ -68,68 +73,6 @@ namespace TiledBitmapGen
 		int _height;
 		int _tileSize;
 		TiledBitmapFormat _format;
-		std::vector<Tile> _tiles;
-	};
-
-	template<typename ChannelFormat, size_t TileSize>
-	class TiledTexture
-	{
-	public:
-		TiledTexture(float* data, int width, int height, int nChannel)
-		{
-			int nTileX = ceilf((float)width / TileSize);
-			int nTileY = ceilf((float)height / TileSize);
-
-			std::vector<Tile> tiles;
-			int pixelSize = nChannel * depth;
-
-			for (int y = 0; y < height; y += tileSize)
-			{
-				for (int x = 0; x < width; x += tileSize)
-				{
-					int tileWidth = std::min(tileSize, width - x);
-					int tileHeight = std::min(tileSize, height - y);
-
-
-					std::vector<uint8_t> tileData;
-					tileData.resize(tileWidth * tileHeight * pixelSize);
-
-					for (int dstY = 0; dstY < tileHeight; ++dstY)
-					{
-						for (int dstX = 0; dstX < tileWidth; ++dstX)
-						{
-							int srcX = x + dstX;
-							int srcY = y + dstY;
-
-							for (int c = 0; c < nChannel; ++c)
-							{
-								float value = data[(srcX + srcY * width) * nChannel + c];
-
-								(ChannelFormat*)& tileData[0])[(dstX + dstY * tileWidth) * nChannel + c] = (ChannelFormat)value;
-							}
-						}
-					}
-					tiles.push_back(Tile{ tileData });
-				}
-			}
-		}
-		void SaveData(FILE* f)
-		{
-			if (!f)
-			{
-				return;
-			}
-
-			for (int i = 0; i < _tiles.size(); ++i)
-			{
-				fwrite(&_tiles[i].data[0], 1, _tiles[i].data.size(), f);
-			}
-		}
-	private:
-		struct Tile
-		{
-			std::vector<uint8_t> data;
-		};
 		std::vector<Tile> _tiles;
 	};
 }

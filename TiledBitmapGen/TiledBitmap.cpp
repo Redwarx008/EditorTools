@@ -62,7 +62,7 @@ namespace TiledBitmapGen
 						}
 					}
 				}
-				tiles.push_back(Tile{ tileData });
+				tiles.emplace_back(Tile(std::move(tileData)));
 			}
 		}
 
