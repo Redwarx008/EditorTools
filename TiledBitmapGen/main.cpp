@@ -68,14 +68,14 @@ TiledBitmapFormat GetTiledBitmapFormat(int bitDepth, int nChannel)
 
 int main(int argc, char* argv[])
 {
-    if (argc < 4 || argc > 5)
+    if (argc < 3 || argc > 4)
     {
-        cout << "usage: [filename] [miplevel] [tileWidth] Option:[format]\n";
+        cout << "usage: [filename] [tileWidth] Option:[format]\n";
+        return -1;
     }
 
     string fileName = argv[1];
-    int mipLevel = atoi(argv[2]);
-    TILE_SIZE = atoi(argv[3]);
+    TILE_SIZE = atoi(argv[2]);
 
     int width, height, nChannel, bitDepth;
 
@@ -87,20 +87,20 @@ int main(int argc, char* argv[])
     }
 
     int outBitDepth = bitDepth;
-    if (strcmp(argv[4], "UInt8") == 0)
+    if (strcmp(argv[3], "UInt8") == 0)
     {
         outBitDepth = 8;
     }
-    else if (strcmp(argv[4], "UInt16") == 0)
+    else if (strcmp(argv[3], "UInt16") == 0)
     {
         outBitDepth = 16;
     }
-    else if (strcmp(argv[4], "Float") == 0)
+    else if (strcmp(argv[3], "Float") == 0)
     {
         outBitDepth = 32; // float
     }
 
-    // convert to float
+    // convert to float array
     float* formattedData = new float[width * height * nChannel];
     if (!formattedData)
     {
@@ -132,10 +132,14 @@ int main(int argc, char* argv[])
     }
     free(originPixels);
 
-    if (mipLevel < 1 || mipLevel > std::max(1, (int)std::log2(std::min(width, height))))
+    int mipLevel = 0;
     {
-        std::cout << "max mip level is out of range.\n";
-        return 2;
+        int minLength = std::min(width, height);
+        while (minLength > TILE_SIZE)
+        {
+            minLength = minLength >> 1;
+            ++mipLevel;
+        }
     }
 
     string outFileName = GetFileNameWithoutSuffix(fileName) + ".tbmp";
@@ -144,6 +148,11 @@ int main(int argc, char* argv[])
     WriteHeader(f, width, height, TILE_SIZE, outBitDepth, nChannel, mipLevel);
 
     float* inData = formattedData;
+
+    TiledBitmap* outTiledBitmap = TiledBitmap::Create(inData, GetTiledBitmapFormat(outBitDepth, nChannel), width, height, TILE_SIZE);
+    outTiledBitmap->SaveData(f);
+    delete outTiledBitmap;
+
     for (int mip = 1; mip <= mipLevel; ++mip)
     {
         int h = floor((float)height / 2);
@@ -203,8 +212,10 @@ int main(int argc, char* argv[])
                 }
             }
         }
-        TiledBitmap* outTiledBitmap = TiledBitmap::Create(outData, GetTiledBitmapFormat(outBitDepth, nChannel), w, h, TILE_SIZE);
+
+        outTiledBitmap = TiledBitmap::Create(outData, GetTiledBitmapFormat(outBitDepth, nChannel), w, h, TILE_SIZE);
         outTiledBitmap->SaveData(f);
+        delete outTiledBitmap;
 
         delete[] inData;
         inData = outData;

@@ -204,7 +204,7 @@ private:
 	}
 	bool Seek(size_t pos)
 	{
-		return _fseeki64(_f, pos, SEEK_SET) != 0;
+		return _fseeki64(_f, pos, SEEK_SET) == 0;
 	}
 };
 

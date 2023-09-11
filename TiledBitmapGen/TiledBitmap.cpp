@@ -35,7 +35,7 @@ namespace TiledBitmapGen
 
 
 				std::vector<uint8_t> tileData;
-				tileData.resize(tileWidth * tileHeight * pixelSize);
+				tileData.resize((uint64_t)tileWidth * tileHeight * pixelSize);
 
 				for (int dstY = 0; dstY < tileHeight; ++dstY)
 				{

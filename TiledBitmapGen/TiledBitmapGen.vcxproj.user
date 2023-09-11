@@ -9,11 +9,11 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommandArguments>../TestData/heightmap.png 2 256 Float</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>../TestData/heightmap.png 256 Float</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LocalDebuggerCommandArguments>../TestData/heightmap.png 2 Float</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>../TestData/heightmap.png 256 Float</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>
