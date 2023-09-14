@@ -2,6 +2,10 @@
 #include <math.h>
 #include <string>
 #include "spng/spng.h"
+#include <iostream>
+#include <filesystem>
+
+using std::filesystem::path;
 
 struct Vector3
 {
@@ -81,25 +85,28 @@ inline int GetImageInfo(spng_ctx* ctx, int* width, int* height, int* nChannel, i
     return ret;
 }
 
-inline FILE* OpenFile(const std::string& fileName, const char* mode)
+inline FILE* OpenFile(const std::string& fileName, const std::string& mode)
 {
     FILE* f;
+#if defined(_WIN32)
+
 #if defined(_MSC_VER) && _MSC_VER >= 1400
-    if (0 != fopen_s(&f, fileName.c_str(), mode))
-    {
-        return nullptr;
-    }
-#else 
-    f = fopen(fileName.c_str(), mode);
-    if (f == nullptr)
-    {
-        return nullptr;
-    }
-#endif // (_MSC_VER) && _MSC_VER >= 1400
+    if (0 != _wfopen_s(&f, path(fileName).wstring().c_str(), path(mode).wstring().c_str()))
+        f = 0;
+#else
+    f = _wfopen(path(fileName).wstring().c_str(), path(mode).wstring().c_str());
+#endif
+
+#elif defined(_MSC_VER) && _MSC_VER >= 1400
+    if (0 != fopen_s(&f, filename, mode))
+        f = 0;
+#else
+    f = fopen(filename, mode);
+#endif
     return f;
 }
 
-inline size_t DecodeImage(const char* fileName, void** out, int* width, int* height, int* nChannel, int* bitDepth)
+inline size_t DecodeImage(const std::string& fileName, void** out, int* width, int* height, int* nChannel, int* bitDepth)
 {
     
     FILE* f = OpenFile(fileName, "rb+");
@@ -117,6 +124,7 @@ inline size_t DecodeImage(const char* fileName, void** out, int* width, int* hei
     {
         std::cout << std::string("GetImageInfo error: ") + spng_strerror(ret) << std::endl;
         fclose(f);
+        spng_ctx_free(ctx);
         return -1;
     }
 
@@ -129,6 +137,7 @@ inline size_t DecodeImage(const char* fileName, void** out, int* width, int* hei
     {
         std::cout << std::string("spng_decoded_image_size error: ") + spng_strerror(ret) << std::endl;
         fclose(f);
+        spng_ctx_free(ctx);
         return -1;
     }
 
@@ -137,6 +146,7 @@ inline size_t DecodeImage(const char* fileName, void** out, int* width, int* hei
     {
         std::cout << "Cannot allocate enough memory.\n";
         fclose(f);
+        spng_ctx_free(ctx);
         return -1;
     }
 

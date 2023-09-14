@@ -43,19 +43,10 @@ namespace TiledBitmapGen
 		}
 	}
 
-	struct Color
-	{
-		float r;
-		float g;
-		float b;
-		float a;
-	};
-
 	class TiledBitmap
 	{
 	public:
 		static TiledBitmap* Create(float* data, TiledBitmapFormat format, int width, int height, int tileSize);
-		void SetPixel(int x, int y, Color color);
 		void SaveData(FILE* f);
 
 		struct Tile
