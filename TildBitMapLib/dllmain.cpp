@@ -24,6 +24,31 @@ using std::filesystem::path;
 //    return TRUE;
 //}
 
+struct Config
+{
+    const char* fileName;
+    int tileSize;
+    bool isHeightmap;
+    bool createNormalmap;
+    float minHeight;
+    float maxHeight;
+};
+
+struct ProcessInfo
+{
+    string outFileName;
+    int width;
+    int height;
+    int nChannel;
+    int outBitDepth;
+    int tileSize;
+};
+
+
+bool TiledBitmapProcess(float* data, const ProcessInfo& info);
+bool NormalmapProcess(float* heights, float** normalmap, int width, int height);
+bool GenerateMinMaxMaps(const char* fileName);
+
 float get_channel_value(const float* data, int x, int y, int width, int height, int nChannel, int channel)
 {
     if (x >= width) x = width - 1;
@@ -45,77 +70,8 @@ void WriteHeader(FILE* f, int width, int height, int tileSize, int bitDepth, int
 
 }
 
-bool GenerateMinMaxMaps(const char* fileName)
-{
-    TiledBitmapLoader tiledBitmap;
-    if (!tiledBitmap.Open(fileName))
-    {
-        cout << "cant't open file in GenerateMinMaxMaps\n";
-        return false;
-    }
 
-    if (tiledBitmap.GetBitDepth() != 32 || tiledBitmap.GetChannelNum() != 1)
-    {
-        cout << "unsupport format in GenerateMinMaxMaps\n";
-        return false;
-    }
-
-    int width = tiledBitmap.GetWidth();
-    int height = tiledBitmap.GetHeight();
-    int tileSize = tiledBitmap.GetTileSize();
-    int nMipmap = tiledBitmap.GetMipmapNum();
-
-    int nTileX = ceil((float)width / tileSize);
-    int nTileY = ceil((float)height / tileSize);
-
-    std::vector<float> out;
-
-    for (int n = 0; n < nMipmap; ++n)
-    {
-        for (int tileY = 0; tileY < nTileY; ++tileY)
-        {
-            for (int tileX = 0; tileX < nTileX; ++tileX)
-            {
-                TiledBitmapLoader::Tile tile = tiledBitmap.LoadTile(n, tileX, tileY);
-                float* data = reinterpret_cast<float*> (&tile.data[0]);
-                int w = tile.width;
-                int h = tile.height;
-                float min = 99999999.0;
-                float max = -99999999.0;
-                for (int y = 0; y < h; ++y)
-                {
-                    for (int x = 0; x < w; ++x)
-                    {
-                        min = std::min(min, data[x + y * w]);
-                        max = std::max(max, data[x + y * w]);
-                    }
-                }
-                out.push_back(min);
-                out.push_back(max);
-            }
-        }
-    }
-#if defined(_WIN32)
-    FILE* f;
-    fopen_s(&f, "minmax.bin", "wb");
-#else
-    FILE* f = fopen("minmax.bin", "wb");
-#endif // WIN32
-    fwrite(&out[0], sizeof(float), out.size(), f);
-    fclose(f);
-    return true;
-}
-
-struct Config
-{
-    const wchar_t* FileName;
-    int TileSize;
-    bool IsHeightmap;
-    float MinHeight;
-    float MaxHeight;
-};
-
-extern "C" __declspec(dllexport) bool GetImgInfo(const wchar_t* fileName, int& nChannel, int& bitDepth)
+extern "C" __declspec(dllexport) bool GetImgInfo(const char* fileName, int& nChannel, int& bitDepth)
 {
     FILE* f = OpenFile(path(fileName).string(), "rb+");
     if (f == nullptr)
@@ -144,8 +100,8 @@ extern "C" __declspec(dllexport) bool GetImgInfo(const wchar_t* fileName, int& n
 
 extern "C" __declspec(dllexport) bool Create(Config config)
 {
-    std::string fileName = path(config.FileName).string();
-    int tileSize = config.TileSize;
+    std::string fileName = path(config.fileName).string();
+    int tileSize = config.tileSize;
 
     int width, height, nChannel, bitDepth;
 
@@ -157,7 +113,7 @@ extern "C" __declspec(dllexport) bool Create(Config config)
     }
 
     int outBitDepth = bitDepth;
-    if (config.IsHeightmap)
+    if (config.isHeightmap)
     {
         outBitDepth = 32;
     }
@@ -189,11 +145,66 @@ extern "C" __declspec(dllexport) bool Create(Config config)
                     value = data[index];
                 }
 
-                formattedData[index] = (float)value;
+                formattedData[index] = config.isHeightmap ? config.minHeight + (float)value / 65535 * (config.maxHeight - config.minHeight) : (float)value;
             }
         }
     }
     free(originPixels);
+
+    string outFileName = GetFileNameWithoutSuffix(fileName) + ".tbmp";
+
+    ProcessInfo info;
+    info.width = width;
+    info.height = height;
+    info.nChannel = nChannel;
+    info.outBitDepth = outBitDepth;
+    info.tileSize = tileSize;
+    info.outFileName = outFileName;
+
+    bool ret = TiledBitmapProcess(formattedData, info);
+    if (!ret)
+    {
+        return false;
+    }
+    // generate minmax maps
+
+    if (config.isHeightmap)
+    {
+        if (config.createNormalmap)
+        {
+            float* normalmap;
+            NormalmapProcess(formattedData, &normalmap, width, height);
+            ProcessInfo info;
+            info.width = width;
+            info.height = height;
+            info.nChannel = 2;
+            info.outBitDepth = 8;
+            info.tileSize = tileSize;
+            info.outFileName = GetFileNameWithoutSuffix(fileName) + "_N.tbmp";
+
+            bool ret = TiledBitmapProcess(normalmap, info);
+            delete[] normalmap;
+            if (!ret)
+            {
+                return false;
+            }
+        }
+        if (!GenerateMinMaxMaps(outFileName.c_str()))
+        {
+            return false;
+        }
+    }
+    delete[] formattedData;
+    return true;
+}
+
+bool TiledBitmapProcess(float* data, const ProcessInfo& info)
+{
+    int width = info.width;
+    int height = info.height;
+    int tileSize = info.tileSize;
+    int outBitDepth = info.outBitDepth;
+    int nChannel = info.nChannel;
 
     int mipLevel = 0;
     {
@@ -205,14 +216,14 @@ extern "C" __declspec(dllexport) bool Create(Config config)
         }
     }
 
-    string outFileName = GetFileNameWithoutSuffix(fileName) + ".tbmp";
+    string outFileName = info.outFileName;
 
     FILE* f = OpenFile(outFileName, "wb");
     WriteHeader(f, width, height, tileSize, outBitDepth, nChannel, mipLevel);
 
-    float* inData = formattedData;
+    float* inData = data;
 
-    TiledBitmap* outTiledBitmap = TiledBitmap::Create(inData, nChannel, outBitDepth, width, height, tileSize, config.MinHeight, config.MaxHeight);
+    TiledBitmap* outTiledBitmap = TiledBitmap::Create(inData, nChannel, outBitDepth, width, height, tileSize);
     outTiledBitmap->SaveData(f);
     delete outTiledBitmap;
 
@@ -276,27 +287,108 @@ extern "C" __declspec(dllexport) bool Create(Config config)
             }
         }
 
-        outTiledBitmap = TiledBitmap::Create(outData, nChannel, outBitDepth, w, h, tileSize, config.MinHeight, config.MaxHeight);
+        outTiledBitmap = TiledBitmap::Create(outData, nChannel, outBitDepth, w, h, tileSize);
         outTiledBitmap->SaveData(f);
         delete outTiledBitmap;
-
-        delete[] inData;
+        // Input data should be released externally
+        if (mip != 1)
+        {
+            delete[] inData;
+        }
         inData = outData;
         width = w;
         height = h;
     }
     delete[] inData;
     fclose(f);
+    return true;
+}
 
-    // generate minmax maps
-
-    if (config.IsHeightmap)
+bool NormalmapProcess(float* heights, float** normalmap, int width, int height)
+{
+    size_t size = static_cast<size_t>(width) * height;
+    *normalmap = new float[size * 2]; //r8g8 texture
+    if (normalmap == nullptr)
     {
-        if (!GenerateMinMaxMaps(outFileName.c_str()))
-        {
-            return false;
-        }
+        std::cout << "There is not enough available memory to export normalmap.\n";
+        return false;
+    }
+    for (int index = 0; index < size; ++index)
+    {
+        int upIndex = index - width < 0 ? index : index - width;
+        int downIndex = index + width > size - 1 ? index : index + width;
+        int leftIndex = index - 1 < 0 ? index : index - 1;
+        int rightIndex = index + 1 > size - 1 ? index : index + 1;
+        float up = heights[upIndex];
+        float down = heights[downIndex];
+        float left = heights[leftIndex];
+        float right = heights[rightIndex];
+
+        Vector3 normal = { left - right, up - down, 2.0f };
+        normal = normal.Normalized();
+
+        float x = ((normal.x + 1) / 2) * 255;
+        float y = ((normal.y + 1) / 2) * 255;
+
+        (*normalmap)[index * 2] = x;
+        (*normalmap)[index * 2 + 1] = y;
     }
     return true;
 }
 
+bool GenerateMinMaxMaps(const char* fileName)
+{
+    TiledBitmapLoader tiledBitmap;
+    if (!tiledBitmap.Open(fileName))
+    {
+        cout << "cant't open file in GenerateMinMaxMaps\n";
+        return false;
+    }
+
+    if (tiledBitmap.GetBitDepth() != 32 || tiledBitmap.GetChannelNum() != 1)
+    {
+        cout << "unsupport format in GenerateMinMaxMaps\n";
+        return false;
+    }
+
+    int width = tiledBitmap.GetWidth();
+    int height = tiledBitmap.GetHeight();
+    int tileSize = tiledBitmap.GetTileSize();
+    int nMipmap = tiledBitmap.GetMipmapNum();
+
+    std::vector<float> out;
+
+    for (int n = 0; n < nMipmap; ++n)
+    {
+        int nTileX = ceil(static_cast<float>(width >> n) / tileSize);
+        int nTileY = ceil(static_cast<float>(height >> n) / tileSize);
+
+        for (int tileY = 0; tileY < nTileY; ++tileY)
+        {
+            for (int tileX = 0; tileX < nTileX; ++tileX)
+            {
+                TiledBitmapLoader::Tile tile = tiledBitmap.LoadTile(n, tileX, tileY);
+                float* data = reinterpret_cast<float*> (&tile.data[0]);
+                int w = tile.width;
+                int h = tile.height;
+                float min = 99999999.0;
+                float max = -99999999.0;
+                for (int y = 0; y < h; ++y)
+                {
+                    for (int x = 0; x < w; ++x)
+                    {
+                        min = std::min(min, data[x + y * w]);
+                        max = std::max(max, data[x + y * w]);
+                    }
+                }
+                out.push_back(min);
+                out.push_back(max);
+            }
+        }
+    }
+    std::string filePath = std::filesystem::path(fileName).parent_path().string() + "/minmax.bin";
+    FILE* f = OpenFile(filePath.c_str(), "wb");
+    fwrite(&out[0], sizeof(float), out.size(), f);
+    fclose(f);
+    return true;
+}

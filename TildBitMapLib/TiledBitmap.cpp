@@ -9,8 +9,8 @@ TiledBitmap::TiledBitmap(int width, int height, int tileSize, std::vector<Tile>&
 	_tileSize = tileSize;
 }
 
-TiledBitmap* TiledBitmap::Create(float* data, int nChannel, int depth, int width, 
-	int height, int tileSize, float minHeight, float maxHeight)
+TiledBitmap* TiledBitmap::Create(float* data, int nChannel, int bitDepth, int width, 
+	int height, int tileSize)
 {
 	TiledBitmap* texture = nullptr;
 
@@ -18,7 +18,7 @@ TiledBitmap* TiledBitmap::Create(float* data, int nChannel, int depth, int width
 	int nTileY = (height - 1) / tileSize + 1;
 	std::vector<Tile> tiles;
 
-	int pixelSize = nChannel * depth;
+	int pixelSize = nChannel * bitDepth / 8;
 
 	for (int y = 0; y < height; y += tileSize)
 	{
@@ -41,17 +41,17 @@ TiledBitmap* TiledBitmap::Create(float* data, int nChannel, int depth, int width
 					for (int c = 0; c < nChannel; ++c)
 					{
 						float value = data[(srcX + srcY * width) * nChannel + c];
-						if (depth == 8)
+						if (bitDepth == 8)
 						{
 							((uint8_t*)&tileData[0])[(dstX + dstY * tileWidth) * nChannel + c] = (uint8_t)value;
 						}
-						else if (depth == 16)
+						else if (bitDepth == 16)
 						{
 							((uint16_t*)&tileData[0])[(dstX + dstY * tileWidth) * nChannel + c] = (uint16_t)value;
 						}
 						else
 						{
-							((float*)&tileData[0])[(dstX + dstY * tileWidth) * nChannel + c] = minHeight + value / 65535 * (maxHeight - minHeight);
+							((float*)&tileData[0])[(dstX + dstY * tileWidth) * nChannel + c] = value;
 						}
 					}
 				}
