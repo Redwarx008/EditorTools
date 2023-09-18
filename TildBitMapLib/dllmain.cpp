@@ -189,7 +189,7 @@ extern "C" __declspec(dllexport) bool Create(Config config)
                 return false;
             }
         }
-        if (!GenerateMinMaxMaps(outFileName.c_str()))
+        if (!GenerateMinMaxMaps(config.fileName))
         {
             return false;
         }
@@ -336,59 +336,42 @@ bool NormalmapProcess(float* heights, float** normalmap, int width, int height)
     return true;
 }
 
-bool GenerateMinMaxMaps(const char* fileName)
+bool GenerateMinMaxMaps(const float* heightmap, int width, int height, int leafQuadTreeNodeSize, int nLodLevel)
 {
-    TiledBitmapLoader tiledBitmap;
-    if (!tiledBitmap.Open(fileName))
+    std::vector<std::vector<float>> minMaxMaps;
+    minMaxMaps.resize(nLodLevel);
+
+    //leaf node
+    int nBlockX = ceil((float)width / leafQuadTreeNodeSize);
+    int nBlockY = ceil((float)height / leafQuadTreeNodeSize);
+    minMaxMaps[0].resize(nBlockX * nBlockY * 2);
+    for (int blockY = 0; blockY < nBlockY; ++blockY)
     {
-        cout << "cant't open file in GenerateMinMaxMaps\n";
-        return false;
-    }
-
-    if (tiledBitmap.GetBitDepth() != 32 || tiledBitmap.GetChannelNum() != 1)
-    {
-        cout << "unsupport format in GenerateMinMaxMaps\n";
-        return false;
-    }
-
-    int width = tiledBitmap.GetWidth();
-    int height = tiledBitmap.GetHeight();
-    int tileSize = tiledBitmap.GetTileSize();
-    int nMipmap = tiledBitmap.GetMipmapNum();
-
-    std::vector<float> out;
-
-    for (int n = 0; n < nMipmap; ++n)
-    {
-        int nTileX = ceil(static_cast<float>(width >> n) / tileSize);
-        int nTileY = ceil(static_cast<float>(height >> n) / tileSize);
-
-        for (int tileY = 0; tileY < nTileY; ++tileY)
+        for (int blockX = 0; blockX < nBlockX; ++blockX)
         {
-            for (int tileX = 0; tileX < nTileX; ++tileX)
+            float min = 999.0;
+            float max = -999.0;
+            int fromY = blockY * leafQuadTreeNodeSize;
+            int toY = std::min(fromY + leafQuadTreeNodeSize + 1, height); // For example, an 8 * 8 block has 9 * 9 vertices.
+            for (int y = fromY; y < toY; ++y)
             {
-                TiledBitmapLoader::Tile tile = tiledBitmap.LoadTile(n, tileX, tileY);
-                float* data = reinterpret_cast<float*> (&tile.data[0]);
-                int w = tile.width;
-                int h = tile.height;
-                float min = 99999999.0;
-                float max = -99999999.0;
-                for (int y = 0; y < h; ++y)
+                int fromX = blockX * leafQuadTreeNodeSize;
+                int toX = std::min(fromX + leafQuadTreeNodeSize + 1, width);
+                for (int x = fromX; x < toX; ++x)
                 {
-                    for (int x = 0; x < w; ++x)
-                    {
-                        min = std::min(min, data[x + y * w]);
-                        max = std::max(max, data[x + y * w]);
-                    }
+                    float h = heightmap[y * width + x];
+                    min = std::min(h, min);
+                    max = std::max(h, max);
                 }
-                out.push_back(min);
-                out.push_back(max);
             }
+            minMaxMaps[0][blockX + blockY * nBlockX + 0] = min;
+            minMaxMaps[0][blockX + blockY * nBlockX + 1] = max;
         }
     }
-    std::string filePath = std::filesystem::path(fileName).parent_path().string() + "/minmax.bin";
-    FILE* f = OpenFile(filePath.c_str(), "wb");
-    fwrite(&out[0], sizeof(float), out.size(), f);
-    fclose(f);
+    
+    //std::string filePath = std::filesystem::path(fileName).parent_path().string() + "/minmax.bin";
+    //FILE* f = OpenFile(filePath.c_str(), "wb");
+    //fwrite(&out[0], sizeof(float), out.size(), f);
+    //fclose(f);
     return true;
 }
