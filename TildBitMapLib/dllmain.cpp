@@ -32,6 +32,8 @@ struct Config
     bool createNormalmap;
     float minHeight;
     float maxHeight;
+    int leafQuadTreeNodeSize;
+    int lodLevelCount;
 };
 
 struct ProcessInfo
@@ -47,7 +49,7 @@ struct ProcessInfo
 
 bool TiledBitmapProcess(float* data, const ProcessInfo& info);
 bool NormalmapProcess(float* heights, float** normalmap, int width, int height);
-bool GenerateMinMaxMaps(const char* fileName);
+bool GenerateMinMaxMaps(const char* outFileName, const float* heightmap, int width, int height, int leafQuadTreeNodeSize, int nLodLevel);
 
 float get_channel_value(const float* data, int x, int y, int width, int height, int nChannel, int channel)
 {
@@ -71,7 +73,7 @@ void WriteHeader(FILE* f, int width, int height, int tileSize, int bitDepth, int
 }
 
 
-extern "C" __declspec(dllexport) bool GetImgInfo(const char* fileName, int& nChannel, int& bitDepth)
+extern "C" __declspec(dllexport) bool GetImgInfo(const char* fileName, int& width, int& height, int& nChannel, int& bitDepth)
 {
     FILE* f = OpenFile(path(fileName).string(), "rb+");
     if (f == nullptr)
@@ -83,7 +85,6 @@ extern "C" __declspec(dllexport) bool GetImgInfo(const char* fileName, int& nCha
 
     spng_set_png_file(ctx, f);
 
-    int width, height;
     int ret = GetImageInfo(ctx, &width, &height, &nChannel, &bitDepth);
     if (ret != 0)
     {
@@ -120,8 +121,8 @@ extern "C" __declspec(dllexport) bool Create(Config config)
 
 
     // convert to float array
-    float* formattedData = new float[width * height * nChannel];
-    if (!formattedData)
+    float* heights = new float[width * height * nChannel];
+    if (!heights)
     {
         std::cout << "There is not enough available memory\n";
         return false;
@@ -145,7 +146,7 @@ extern "C" __declspec(dllexport) bool Create(Config config)
                     value = data[index];
                 }
 
-                formattedData[index] = config.isHeightmap ? config.minHeight + (float)value / 65535 * (config.maxHeight - config.minHeight) : (float)value;
+                heights[index] = config.isHeightmap ? config.minHeight + (float)value / 65535 * (config.maxHeight - config.minHeight) : (float)value;
             }
         }
     }
@@ -161,7 +162,7 @@ extern "C" __declspec(dllexport) bool Create(Config config)
     info.tileSize = tileSize;
     info.outFileName = outFileName;
 
-    bool ret = TiledBitmapProcess(formattedData, info);
+    bool ret = TiledBitmapProcess(heights, info);
     if (!ret)
     {
         return false;
@@ -173,7 +174,7 @@ extern "C" __declspec(dllexport) bool Create(Config config)
         if (config.createNormalmap)
         {
             float* normalmap;
-            NormalmapProcess(formattedData, &normalmap, width, height);
+            NormalmapProcess(heights, &normalmap, width, height);
             ProcessInfo info;
             info.width = width;
             info.height = height;
@@ -189,12 +190,13 @@ extern "C" __declspec(dllexport) bool Create(Config config)
                 return false;
             }
         }
-        if (!GenerateMinMaxMaps(config.fileName))
+        std::string outFileName = std::filesystem::path(fileName).parent_path().string() + "/minmax.bin";
+        if (!GenerateMinMaxMaps(outFileName.c_str(), heights, width, height, config.leafQuadTreeNodeSize, config.lodLevelCount))
         {
             return false;
         }
     }
-    delete[] formattedData;
+    delete[] heights;
     return true;
 }
 
@@ -336,42 +338,96 @@ bool NormalmapProcess(float* heights, float** normalmap, int width, int height)
     return true;
 }
 
-bool GenerateMinMaxMaps(const float* heightmap, int width, int height, int leafQuadTreeNodeSize, int nLodLevel)
+bool GenerateMinMaxMaps(const char* outFileName, const float* heightmap, int width, int height, int leafQuadTreeNodeSize, int nLodLevel)
 {
-    std::vector<std::vector<float>> minMaxMaps;
+    using MinMaxMaps = std::vector<std::vector<float>>;
+    MinMaxMaps minMaxMaps;
     minMaxMaps.resize(nLodLevel);
 
-    //leaf node
-    int nBlockX = ceil((float)width / leafQuadTreeNodeSize);
-    int nBlockY = ceil((float)height / leafQuadTreeNodeSize);
-    minMaxMaps[0].resize(nBlockX * nBlockY * 2);
-    for (int blockY = 0; blockY < nBlockY; ++blockY)
+    for (int level = 0; level < nLodLevel; ++level)
     {
-        for (int blockX = 0; blockX < nBlockX; ++blockX)
+        int size = leafQuadTreeNodeSize << level;
+        int nBlockX = ceil((float)width / size);
+        int nBlockY = ceil((float)height / size);
+        minMaxMaps[level].resize(nBlockX * nBlockY * 2);
+    }
+
+
+    struct Desc
+    {
+        int width;
+        int height;
+        const float* heightmap;
+    };
+    struct Node
+    {
+        Node(int x, int y, int size, int level, const Desc& desc, MinMaxMaps& minmaxmaps)
         {
-            float min = 999.0;
-            float max = -999.0;
-            int fromY = blockY * leafQuadTreeNodeSize;
-            int toY = std::min(fromY + leafQuadTreeNodeSize + 1, height); // For example, an 8 * 8 block has 9 * 9 vertices.
-            for (int y = fromY; y < toY; ++y)
+            if (level == 0)
             {
-                int fromX = blockX * leafQuadTreeNodeSize;
-                int toX = std::min(fromX + leafQuadTreeNodeSize + 1, width);
-                for (int x = fromX; x < toX; ++x)
+                int sizeX = std::min(desc.width, x + size + 1) - x;
+                int sizeY = std::min(desc.height, y + size + 1) - y;
+
+                float min = 999.0;
+                float max = -999.0;
+                for (int blockY = 0; blockY < sizeY; ++blockY)
                 {
-                    float h = heightmap[y * width + x];
-                    min = std::min(h, min);
-                    max = std::max(h, max);
+                    for (int blockX = 0; blockX < sizeX; ++blockX)
+                    {
+                        float h = desc.heightmap[blockX + x + (blockY + y) * sizeX];
+                        min = std::min(min, h);
+                        max = std::max(max, h);
+                    }
+                }
+                this->min = min;
+                this->max = max;
+            }
+            else
+            {
+                int subSize = size / 2;
+                // top left
+                auto node = Node(x, y, subSize, level + 1, desc, minmaxmaps);
+                this->min = node.min;
+                this->max = node.max;
+
+                // top right
+                if ((x + subSize) < desc.width)
+                {
+                    auto node = Node(x + subSize, y, subSize, level + 1, desc, minmaxmaps);
+                    this->min = std::min(this->min, node.min);
+                    this->max = std::max(this->max, node.max);
+                }
+
+                // bottom left
+                if ((y + subSize) < desc.height)
+                {
+                    auto node = Node(x, y + subSize, subSize, level + 1, desc, minmaxmaps);
+                    this->min = std::min(this->min, node.min);
+                    this->max = std::max(this->max, node.max);
+                }
+
+                //bottom right
+                if (((x + subSize) < desc.width) && ((y + subSize) < desc.height))
+                {
+                    auto node = Node(x + subSize, y + subSize, subSize, level + 1, desc, minmaxmaps);
+                    this->min = std::min(this->min, node.min);
+                    this->max = std::max(this->max, node.max);
                 }
             }
-            minMaxMaps[0][blockX + blockY * nBlockX + 0] = min;
-            minMaxMaps[0][blockX + blockY * nBlockX + 1] = max;
+
+            int nNodeX = ceil(desc.width / (float)size);
+            minmaxmaps[0][x / size + (y / size) * nNodeX + 0] = this->min;
+            minmaxmaps[0][x / size + (y / size) * nNodeX + 1] = this->max;
         }
+        float min;
+        float max;
+    };
+
+    FILE* f = OpenFile(outFileName, "wb");
+    for (const auto& minMaxMap : minMaxMaps)
+    {
+        fwrite(&minMaxMap[0], sizeof(float), minMaxMap.size(), f);
     }
-    
-    //std::string filePath = std::filesystem::path(fileName).parent_path().string() + "/minmax.bin";
-    //FILE* f = OpenFile(filePath.c_str(), "wb");
-    //fwrite(&out[0], sizeof(float), out.size(), f);
-    //fclose(f);
+    fclose(f);
     return true;
 }
