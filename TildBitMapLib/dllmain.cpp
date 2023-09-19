@@ -27,6 +27,7 @@ struct Config
 {
     const char* fileName;
     int tileSize;
+    int tileBorderSize;
     bool isHeightmap;
     bool createNormalmap;
     float minHeight;
@@ -43,6 +44,7 @@ struct ProcessInfo
     int nChannel;
     int outBitDepth;
     int tileSize;
+    int borderSize;
 };
 
 
@@ -60,12 +62,12 @@ float get_channel_value(const float* data, int x, int y, int width, int height, 
     return data[(x + y * width) * nChannel + channel];
 }
 
-void WriteHeader(FILE* f, int width, int height, int tileSize, int bitDepth, int nChannel, int mipmapCount)
+void WriteHeader(FILE* f, int width, int height, int tileSize, int borderSize, int bitDepth, int nChannel, int mipmapCount)
 {
     if (f == nullptr) return;
 
     uint16_t sizeInfo[] = { (uint16_t)width, (uint16_t)height, (uint16_t)tileSize };
-    uint8_t pixelInfo[] = { (uint8_t)bitDepth, (uint8_t)nChannel, (uint8_t)mipmapCount };
+    uint8_t pixelInfo[] = { (uint8_t)bitDepth, (uint8_t)nChannel, (uint8_t)mipmapCount, (uint8_t)borderSize};
     fwrite(&sizeInfo[0], sizeof(uint16_t), sizeof(sizeInfo) / sizeof(uint16_t), f);
     fwrite(&pixelInfo[0], sizeof(uint8_t), sizeof(pixelInfo) / sizeof(uint8_t), f);
 
@@ -102,6 +104,7 @@ extern "C" __declspec(dllexport) bool Create(Config config)
 {
     std::string fileName = path(config.fileName).string();
     int tileSize = config.tileSize;
+    int borderSize = config.tileBorderSize;
 
     int width, height, nChannel, bitDepth;
 
@@ -159,6 +162,7 @@ extern "C" __declspec(dllexport) bool Create(Config config)
     info.nChannel = nChannel;
     info.outBitDepth = outBitDepth;
     info.tileSize = tileSize;
+    info.borderSize = borderSize;
     info.outFileName = outFileName;
 
     bool ret = TiledBitmapProcess(heights, info);
@@ -204,6 +208,7 @@ bool TiledBitmapProcess(float* data, const ProcessInfo& info)
     int width = info.width;
     int height = info.height;
     int tileSize = info.tileSize;
+    int borderSize = info.borderSize;
     int outBitDepth = info.outBitDepth;
     int nChannel = info.nChannel;
 
@@ -220,11 +225,11 @@ bool TiledBitmapProcess(float* data, const ProcessInfo& info)
     string outFileName = info.outFileName;
 
     FILE* f = OpenFile(outFileName, "wb");
-    WriteHeader(f, width, height, tileSize, outBitDepth, nChannel, mipLevel);
+    WriteHeader(f, width, height, tileSize, outBitDepth, nChannel, mipLevel, borderSize);
 
     float* inData = data;
 
-    TiledBitmap* outTiledBitmap = TiledBitmap::Create(inData, nChannel, outBitDepth, width, height, tileSize);
+    TiledBitmap* outTiledBitmap = TiledBitmap::Create(inData, nChannel, outBitDepth, width, height, tileSize, borderSize);
     outTiledBitmap->SaveData(f);
     delete outTiledBitmap;
 
@@ -288,7 +293,7 @@ bool TiledBitmapProcess(float* data, const ProcessInfo& info)
             }
         }
 
-        outTiledBitmap = TiledBitmap::Create(outData, nChannel, outBitDepth, w, h, tileSize);
+        outTiledBitmap = TiledBitmap::Create(outData, nChannel, outBitDepth, w, h, tileSize, borderSize);
         outTiledBitmap->SaveData(f);
         delete outTiledBitmap;
         // Input data should be released externally
