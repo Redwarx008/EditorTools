@@ -1,6 +1,5 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "Utility.h"
-#include "TiledBitmapLoader.h"
 #include "TiledBitmap.hpp"
 #include <iostream>
 #include <string>
@@ -344,12 +343,15 @@ bool GenerateMinMaxMaps(const char* outFileName, const float* heightmap, int wid
     MinMaxMaps minMaxMaps;
     minMaxMaps.resize(nLodLevel);
 
+    int topNodeSize = leafQuadTreeNodeSize * pow(2, nLodLevel - 1);
+    int nodeCount = 0;
     for (int level = 0; level < nLodLevel; ++level)
     {
         int size = leafQuadTreeNodeSize << level;
         int nBlockX = ceil((float)width / size);
         int nBlockY = ceil((float)height / size);
         minMaxMaps[level].resize(nBlockX * nBlockY * 2);
+        nodeCount += minMaxMaps[level].size();
     }
 
 
@@ -361,8 +363,21 @@ bool GenerateMinMaxMaps(const char* outFileName, const float* heightmap, int wid
     };
     struct Node
     {
-        Node(int x, int y, int size, int level, const Desc& desc, MinMaxMaps& minmaxmaps)
+        Node()
         {
+            Min = FLT_MIN;
+            Max = FLT_MAX;
+            Level = UINT16_MAX;
+            X = UINT16_MAX;
+            Y = UINT16_MAX;
+            Size = UINT16_MAX;
+        }
+        Node(int x, int y, int size, int level, const Desc& desc, std::vector<Node>& nodes)
+        {
+            X = (uint16_t)x;
+            Y = (uint16_t)y;
+            Size = (uint16_t)size;
+            Level = (uint16_t)level;
             if (level == 0)
             {
                 int sizeX = std::min(desc.width, x + size + 1) - x;
@@ -379,54 +394,82 @@ bool GenerateMinMaxMaps(const char* outFileName, const float* heightmap, int wid
                         max = std::max(max, h);
                     }
                 }
-                this->min = min;
-                this->max = max;
+                this->Min = min;
+                this->Max = max;
             }
             else
             {
                 int subSize = size / 2;
                 // top left
-                auto node = Node(x, y, subSize, level + 1, desc, minmaxmaps);
-                this->min = node.min;
-                this->max = node.max;
-
+                auto node = Node(x, y, subSize, level - 1, desc, nodes);
+                this->Min = node.Min;
+                this->Max = node.Max;
+                nodes.push_back(node);
                 // top right
                 if ((x + subSize) < desc.width)
                 {
-                    auto node = Node(x + subSize, y, subSize, level + 1, desc, minmaxmaps);
-                    this->min = std::min(this->min, node.min);
-                    this->max = std::max(this->max, node.max);
+                    auto node = Node(x + subSize, y, subSize, level - 1, desc, nodes);
+                    this->Min = std::min(this->Min, node.Min);
+                    this->Max = std::max(this->Max, node.Max);
+                    nodes.push_back(node);
                 }
 
                 // bottom left
                 if ((y + subSize) < desc.height)
                 {
-                    auto node = Node(x, y + subSize, subSize, level + 1, desc, minmaxmaps);
-                    this->min = std::min(this->min, node.min);
-                    this->max = std::max(this->max, node.max);
+                    auto node = Node(x, y + subSize, subSize, level - 1, desc, nodes);
+                    this->Min = std::min(this->Min, node.Min);
+                    this->Max = std::max(this->Max, node.Max);
+                    nodes.push_back(node);
                 }
 
                 //bottom right
                 if (((x + subSize) < desc.width) && ((y + subSize) < desc.height))
                 {
-                    auto node = Node(x + subSize, y + subSize, subSize, level + 1, desc, minmaxmaps);
-                    this->min = std::min(this->min, node.min);
-                    this->max = std::max(this->max, node.max);
+                    auto node = Node(x + subSize, y + subSize, subSize, level - 1, desc, nodes);
+                    this->Min = std::min(this->Min, node.Min);
+                    this->Max = std::max(this->Max, node.Max);
+                    nodes.push_back(node);
                 }
             }
 
-            int nNodeX = ceil(desc.width / (float)size);
-            minmaxmaps[0][x / size + (y / size) * nNodeX + 0] = this->min;
-            minmaxmaps[0][x / size + (y / size) * nNodeX + 1] = this->max;
         }
-        float min;
-        float max;
+        float Min;
+        float Max;
+        uint16_t Level;
+        uint16_t X;
+        uint16_t Y;
+        uint16_t Size;
     };
 
-    FILE* f = OpenFile(outFileName, "wb");
-    for (const auto& minMaxMap : minMaxMaps)
+    std::vector<Node> nodes;
+    nodes.resize(nodeCount);
+    int nTopNodeX = ceil((float)width / topNodeSize);
+    int nTopNodeY = ceil((float)height / topNodeSize);
+    Desc desc{};
+    desc.heightmap = heightmap;
+    desc.width = width;
+    desc.height = height;
+    for (int y = 0; y < nTopNodeY; ++y)
     {
-        fwrite(&minMaxMap[0], sizeof(float), minMaxMap.size(), f);
+        for (int x = 0; x < nTopNodeX; ++x)
+        {
+            auto node = Node(x * topNodeSize, y * topNodeSize, topNodeSize, nLodLevel - 1, desc, nodes);
+            nodes.push_back(node);
+        }
+    }
+
+    for (auto& node : nodes)
+    {
+        int index = node.X / node.Size + (node.Y / node.Size) * ceil((float)width / node.Size);
+        minMaxMaps[node.Level][index * 2 + 0] = node.Min;
+        minMaxMaps[node.Level][index * 2 + 1] = node.Max;
+    }
+
+    FILE* f = OpenFile(outFileName, "wb");
+    for (int i = 0; i < minMaxMaps.size(); ++i)
+    {
+        fwrite(&minMaxMaps[i][0], sizeof(float), minMaxMaps[i].size(), f);
     }
     fclose(f);
     return true;
