@@ -11,7 +11,7 @@ TiledBitmap::TiledBitmap(int width, int height, int tileSize, std::vector<Tile>&
 }
 
 TiledBitmap* TiledBitmap::Create(float* data, int nChannel, int bitDepth, int width, 
-	int height, int tileSize, int borderSize)
+	int height, int tileSize, int borderWidth)
 {
 	TiledBitmap* texture = nullptr;
 
@@ -28,8 +28,8 @@ TiledBitmap* TiledBitmap::Create(float* data, int nChannel, int bitDepth, int wi
 			int tileWidth = std::min(tileSize, width - x);
 			int tileHeight = std::min(tileSize, height - y);
 
-			int pageWidth = tileWidth + borderSize * 2;
-			int pageHeight = tileHeight + borderSize * 2;
+			int pageWidth = tileWidth + borderWidth * 2;
+			int pageHeight = tileHeight + borderWidth * 2;
 
 			std::vector<uint8_t> tileData;
 			tileData.resize((uint64_t)pageWidth * pageHeight * pixelSize);
@@ -38,8 +38,8 @@ TiledBitmap* TiledBitmap::Create(float* data, int nChannel, int bitDepth, int wi
 			{
 				for (int dstX = 0; dstX < pageWidth; ++dstX)
 				{
-					int srcX = std::clamp(x + dstX - borderSize, 0, width - 1);
-					int srcY = std::clamp(y + dstY - borderSize, 0, height - 1);
+					int srcX = std::clamp(x + dstX - borderWidth, 0, width - 1);
+					int srcY = std::clamp(y + dstY - borderWidth, 0, height - 1);
 
 					for (int c = 0; c < nChannel; ++c)
 					{

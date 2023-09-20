@@ -6,7 +6,7 @@ class TiledBitmap
 {
 public:
 	static TiledBitmap* Create(float* data, int nChannel, int depth, int width, 
-		int height, int tileSize, int borderSize);
+		int height, int tileSize, int borderWidth);
 	void SaveData(FILE* f);
 	struct Tile
 	{
