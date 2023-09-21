@@ -154,7 +154,7 @@ extern "C" __declspec(dllexport) bool Create(Config config)
     }
     free(originPixels);
 
-    string outFileName = GetFileNameWithoutSuffix(fileName) + ".tbmp";
+    string outFileName = GetFileNameWithoutSuffix(fileName) + ".pt";
 
     ProcessInfo info;
     info.width = width;
@@ -185,7 +185,7 @@ extern "C" __declspec(dllexport) bool Create(Config config)
             info.outBitDepth = 8;
             info.tileSize = tileSize;
             info.borderWidth = borderWidth;
-            info.outFileName = GetFileNameWithoutSuffix(fileName) + "_N.tbmp";
+            info.outFileName = GetFileNameWithoutSuffix(fileName) + "_N.pt";
 
             bool ret = PagedTextureProcess(normalmap, info);
             delete[] normalmap;

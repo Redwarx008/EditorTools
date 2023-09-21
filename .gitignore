@@ -2,3 +2,6 @@
 **/.vs/
 x64/
 
+TestData/minmax.bin
+TestData/heightmap.tbmp
+TestData/heightmap_N.tbmp

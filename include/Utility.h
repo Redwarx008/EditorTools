@@ -88,20 +88,26 @@ inline int GetImageInfo(spng_ctx* ctx, int* width, int* height, int* nChannel, i
 inline FILE* OpenFile(const std::string& fileName, const std::string& mode)
 {
     FILE* f;
+//#if defined(_WIN32)
+//
+//#if defined(_MSC_VER) && _MSC_VER >= 1400
+//    if (0 != _wfopen_s(&f, path(fileName).wstring().c_str(), path(mode).wstring().c_str()))
+//        f = 0;
+//#else
+//    f = _wfopen(path(fileName).wstring().c_str(), path(mode).wstring().c_str());
+//#endif
+//
+//#elif defined(_MSC_VER) && _MSC_VER >= 1400
+//    if (0 != fopen_s(&f, fileName.c_str(), mode.c_str()))
+//        f = 0;
+//#else
+//    f = fopen(filename, mode);
+//#endif
 #if defined(_WIN32)
-
-#if defined(_MSC_VER) && _MSC_VER >= 1400
-    if (0 != _wfopen_s(&f, path(fileName).wstring().c_str(), path(mode).wstring().c_str()))
+    if (0 != fopen_s(&f, fileName.c_str(), mode.c_str()))
         f = 0;
 #else
-    f = _wfopen(path(fileName).wstring().c_str(), path(mode).wstring().c_str());
-#endif
-
-#elif defined(_MSC_VER) && _MSC_VER >= 1400
-    if (0 != fopen_s(&f, filename, mode))
-        f = 0;
-#else
-    f = fopen(filename, mode);
+    f = fopen(fileName.c_str(), mode.c_str());
 #endif
     return f;
 }
