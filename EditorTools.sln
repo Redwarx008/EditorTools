@@ -11,7 +11,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TiledBitmapGen", "TiledBitm
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MinMaxMapsGen", "MinMaxMapsGen\MinMaxMapsGen.vcxproj", "{B914C3F5-E086-42AD-A1C3-238AEBDBFA94}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TildBitMapLib", "TildBitMapLib\TildBitMapLib.vcxproj", "{5F61E5C3-F98A-4CB6-9C23-74C758060E85}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PagedTextureLib", "PagedTextureLib\PagedTextureLib.vcxproj", "{5F61E5C3-F98A-4CB6-9C23-74C758060E85}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
