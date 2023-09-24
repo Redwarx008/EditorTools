@@ -461,6 +461,9 @@ bool GenerateMinMaxMaps(const char* outFileName, const float* heightmap, int wid
     }
 
     FILE* f = OpenFile(outFileName, "wb");
+    //write header
+    uint8_t header[] = { (uint8_t)leafQuadTreeNodeSize, (uint8_t)nLodLevel, };
+    fwrite(&header, sizeof(uint8_t), sizeof(header) / sizeof(uint8_t), f);
     for (int i = 0; i < minMaxMaps.size(); ++i)
     {
         fwrite(&minMaxMaps[i][0], sizeof(float), minMaxMaps[i].size(), f);
